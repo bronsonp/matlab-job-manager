@@ -20,6 +20,7 @@ where
 * `display_config` is a struct that includes settings that **cannot** influence the return value `result`. For example, this structure could specify how verbose the solver should be in printing messages to the command window.
 
 There are two ways to use this package:
+
 1. The low-level interface to the memoisation cache. Use this if you implement your own execution framework but want to add memoisation.
 2. The high-level interface for running jobs. This automatically takes advantage of the memoisation cache.
 
@@ -84,6 +85,7 @@ The optional job server (for remote execution) requires some C++ code to be comp
 **Summary:** Look in the `+example` folder and copy this code to get started.
 
 Prerequisites:
+
 1. The solver must implement the function signature above.
 2. The solver must explicitly tag its dependencies so that the memoisation cache
 can be cleared when these dependencies change. See the "Dependency
@@ -96,6 +98,7 @@ An example solver that implements this API is included in the `+example` folder.
 ## Using the low-level interface
 
 Prerequisites:
+
 1. The solver must implement the function signature above.
 2. The solver must explicitly tag its dependencies so that the cache can be emptied when these dependencies change. See the "Dependency tagging" section for instructions.
 3. Call the `check_cache` function first before any other functions are called. This will create a new empty cache directory, or delete old cache entries if the solver code has been modified.
@@ -140,11 +143,13 @@ This is the preferred method of running jobs on a compute cluster because you ca
     run_opts.execution_method = 'job_server';
 
 It consists of three parts:
+
 1. Your local interactive Matlab session where you prepare job configs.
 2. A job server that manages the work queue (typically another Matlab session also running on your local machine).
 3. Multiple workers that connect to the job server over a network.
 
 To use the job server:
+
 1. Start up another copy of Matlab *on your local machine* and run `jobmgr.server.start_server`.
 2. On the remote machine(s), run the script `start-workers-locally.sh`. If you have a cluster managed by PBS, you can use the script `start-workers-with-qsub.sh`. These scripts are in the folder `+jobmgr/+server`. You can also start workers manually by running the Matlab command `jobmgr.server.start_worker('server_hostname')` where `server_hostname` is the hostname or IP address of your local machine.
 3. When you are finished, tell the workers to quit: `jobmgr.server.control('quit_workers')`.
