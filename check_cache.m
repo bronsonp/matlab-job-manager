@@ -8,19 +8,126 @@ function check_cache(fn_handle, silent)
 % CHECK_CACHE(FUNCTION, TRUE) Do the same without printing any messages.
 %
 
-    if nargin < 2
-        silent = false;
+if nargin < 2
+    silent = false;
+end
+
+% Load the memoise configuration
+c = memoise_config(fn_handle);
+
+% Ensure the cache directory exists
+[~,~,~] = mkdir(c.cache_dir);
+
+% Check the cache
+cache_ok = check_cache();
+
+% Override the cache check. Use with care!!!
+%cache_ok = true;
+
+while ~cache_ok
+    % Lock the cache so that only one process will attempt to create
+    % the cache structure.
+    [have_lock, lock_h] = jobmgr.obtain_lock(c.cache_root);
+
+    if ~have_lock
+        fprintf('Cache directory is locked by another process. Waiting ...\n');
+
+        % Wait for the other process to finish
+        pause(rand());
+
+        % Check the cache again
+        cache_ok = check_cache();
+
+        continue;
     end
 
-    % Load the memoise configuration
-    c = memoise_config(fn_handle);
+    % We own the lock. Clear the old cache
+    fprintf('Removing memoisation cache for %s\n', c.filename);
+    [~,~,~] = rmdir(fullfile(c.cache_root, 'cache'), 's');
+    [~,~,~] = mkdir(fullfile(c.cache_root, 'cache'));
+    [~,~,~] = rmdir(fullfile(c.cache_root, 'datefiles'), 's');
+    [~,~,~] = mkdir(fullfile(c.cache_root, 'datefiles'));
 
-    % Ensure the cache directory exists
-    [~,~,~] = mkdir(c.cache_dir);
+    % Write new date files
+    for i = 1:numel(files)
+        file = files{i};
+        date = dates{i};
+        date_file = make_date_filename(file);
+        save(date_file, 'date', '-mat');
+    end
 
-    % Check the modified date of the file we're memoising for, and any
-    % file dependencies
-    files = find_file_dependencies(c.filename, {c.filename});
+    % Release the lock
+    jobmgr.release_lock(lock_h);
+
+    fprintf('Initialised a new empty cache directory at: %s\n', c.cache_dir);
+    cache_ok = true;
+
+    if ~silent
+        % Print some statistics
+        num_files = 0;
+        num_megabytes = 0;
+
+        for d = dir(c.cache_dir)'
+            if d.name(1) == '.'
+                continue;
+            end
+            l = dir(fullfile(c.cache_dir, d.name));
+            l = l( ~[l.isdir] );
+            num_files = num_files + numel(l);
+            num_megabytes = num_megabytes + sum([l.bytes])/1024/1024;
+        end
+
+        fprintf('Cache directory %s contains %i items totalling %.2f MB\n', c.cache_dir, num_files, num_megabytes);
+    end
+end
+
+%%% Subfunctions
+    function cache_ok = check_cache
+        % CHECK_CACHE Return true if the cache is up to date, and false otherwise.
+
+        % Check the modified date of the file we're memoising for, and any
+        % file dependencies
+        files = find_file_dependencies(c.filename, {c.filename});
+
+        % Find the modification dates for each file
+        function date = find_modification_date(file)
+            file_struct = dir(file);
+            date = file_struct.date;
+        end
+        dates = cellfun(@find_modification_date, files, 'UniformOutput', false);
+
+        % Check whether the saved dates are still current
+        cache_ok = true; % set to false if we find a file that has changed
+        for i = 1:numel(files)
+            file = files{i};
+            date = dates{i};
+            date_file = make_date_filename(file);
+            try
+                saved_date = load(date_file, '-mat');
+                file_ok = strcmp(saved_date.date, date);
+                cache_ok = cache_ok && file_ok;
+                if ~file_ok
+                    fprintf('memoise: %s has been modified.\n', file);
+                end
+            catch E
+                % catch the error if the file didn't exist, because this simply means that
+                % it's a newly added dependency
+                if strcmp(E.identifier, 'MATLAB:load:couldNotReadFile')
+                    % This invalidates the cache
+                    fprintf('memoise: %s added as a dependency\n', file);
+                    cache_ok = false;
+                else
+                    throw(E);
+                end
+            end
+        end
+    end
+
+    function date_file = make_date_filename(file)
+        file = regexprep(file, '[\/\\]', '-');
+        date_file = fullfile(c.cache_root, 'datefiles', [file '.date']);
+    end
+
     function files = find_file_dependencies(file, files)
         % Read the file
         lines = textread(file, '%s', 'delimiter', '\n', 'whitespace', '');
@@ -76,89 +183,6 @@ function check_cache(fn_handle, silent)
                     files = [files fname];
                 end
             end
-        end
-    end
-
-    % Find the modification dates for each file
-    function date = find_modification_date(file)
-        file_struct = dir(file);
-        date = file_struct.date;
-    end
-    dates = cellfun(@find_modification_date, files, 'UniformOutput', false);
-
-    function date_file = make_date_filename(file)
-        file = regexprep(file, '[\/\\]', '-');
-        date_file = fullfile(c.cache_root, [file '.date']);
-    end
-
-    % Check whether the saved dates are still current
-    cache_ok = true; % set to false if we find a file that has changed
-    for i = 1:numel(files)
-        file = files{i};
-        date = dates{i};
-        date_file = make_date_filename(file);
-        try
-            saved_date = load(date_file, '-mat');
-            file_ok = strcmp(saved_date.date, date);
-            cache_ok = cache_ok && file_ok;
-            if ~file_ok
-                fprintf('memoise: %s has been modified.\n', file);
-            end
-        catch E
-            % catch the error if the file didn't exist, because this simply means that
-            % it's a newly added dependency
-            if strcmp(E.identifier, 'MATLAB:load:couldNotReadFile')
-                % This invalidates the cache
-                fprintf('memoise: %s added as a dependency\n', file);
-                cache_ok = false;
-            else
-                throw(E);
-            end
-        end
-    end
-
-    % Override the cache check. Use with care!!!
-    %cache_ok = true;
-
-    if ~cache_ok
-        % Check if we're a worker thread in a parfor
-        if ~isempty(getCurrentWorker())
-            % The purpose of this check is so that every parfor worker doesn't
-            % simultaneously try to delete the cache
-            error('Memoisation cache needs to be deleted, but this cannot be done inside a worker thread. Call check_cache from the main thread.');
-        end
-
-        % Clear the old cache
-        fprintf('Removing memoisation cache for %s\n', c.filename);
-        rmdir(c.cache_root, 's');
-        [~,~,~] = mkdir(c.cache_dir);
-
-        % Write new date files
-        for i = 1:numel(files)
-            file = files{i};
-            date = dates{i};
-            date_file = make_date_filename(file);
-            save(date_file, 'date', '-mat');
-        end
-        fprintf('Initialised a new empty cache directory at: %s\n', c.cache_dir);
-    else
-        % Cache is ok.
-        if ~silent
-            % Print some statistics
-            num_files = 0;
-            num_megabytes = 0;
-
-            for d = dir(c.cache_dir)'
-                if d.name(1) == '.'
-                    continue;
-                end
-                l = dir(fullfile(c.cache_dir, d.name));
-                l = l( ~[l.isdir] );
-                num_files = num_files + numel(l);
-                num_megabytes = num_megabytes + sum([l.bytes])/1024/1024;
-            end
-
-            fprintf('Cache directory %s contains %i items totalling %.2f MB\n', c.cache_dir, num_files, num_megabytes);
         end
     end
 
