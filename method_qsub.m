@@ -19,7 +19,9 @@ function r = method_qsub(run_opts, configs, config_hashes, run_names)
             % The job finished in the time between jobmgr.run checking and now.
             % There's still a race condition where we may resubmit a job that
             % just finished, but this check greatly reduces the window.
-            if ~run_opts.no_return_value
+            if run_opts.no_return_value
+                r{a} = true;
+            else
                 % Recall the value.
                 r{a} = jobmgr.recall(configs{a}.solver, config_hashes{a});
             end

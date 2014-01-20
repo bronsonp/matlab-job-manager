@@ -15,7 +15,7 @@ function r = method_parfor(run_opts, configs, config_hashes, run_names)
             r{a} = jobmgr.run_without_cache(configs{a}, display_config);
             jobmgr.store(configs{a}.solver, config_hashes{a}, r{a});
             if run_opts.no_return_value
-                r{a} = []; % save memory
+                r{a} = true; % save memory
             end
         end
     else
