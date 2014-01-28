@@ -25,6 +25,11 @@ cache_ok = check_cache();
 %cache_ok = true;
 
 while ~cache_ok
+    % On NFS filesystems, Matlab sometimes fails to notice that the
+    % files have changed. This forces it to invalidate its cache,
+    % thus picking up the new M-files.
+    rehash;
+
     % Lock the cache so that only one process will attempt to create
     % the cache structure.
     [have_lock, lock_h] = jobmgr.obtain_lock(c.cache_root);
