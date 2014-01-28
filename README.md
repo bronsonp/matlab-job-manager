@@ -151,10 +151,13 @@ It consists of three parts:
 To use the job server:
 
 1. Start up another copy of Matlab *on your local machine* and run `jobmgr.server.start_server`.
-2. On the remote machine(s), run the script `start-workers-locally.sh`. If you have a cluster managed by PBS, you can use the script `start-workers-with-qsub.sh`. These scripts are in the folder `+jobmgr/+server`. You can also start workers manually by running the Matlab command `jobmgr.server.start_worker('server_hostname')` where `server_hostname` is the hostname or IP address of your local machine.
-3. When you are finished, tell the workers to quit: `jobmgr.server.control('quit_workers')`.
+2. On the remote machine(s), start the workers with any of:
+  - `$ ./+jobmgr/+server/start-workers-locally.sh hostname-of-machine-running-the-server number-of-workers-to-start` This will run the specified number of workers on the machine where you run this command.
+  - `$ ./+jobmgr/+server/start-workers-with-qsub.sh hostname-of-machine-running-the-server number-of-workers-to-start` This will run the specified number of workers on your compute cluster using the `qsub` tool for job submission.
+  - To roll your own mechanism for starting workers, you need to call the Matlab function `jobmgr.server.start_worker('server_hostname')` where `server_hostname` is the hostname or IP address of the machine running the job server.
+3. Workers will poll the job server every 10 seconds for new jobs. You must manually quit the workers when you are finished. You can tell the server to immediately kill all workers with: `jobmgr.server.control('quit_workers')`. Alternatively, you can quit the job server and the workers will quit after a timeout. For a controlled shutdown, run `jobmgr.server.control('quit_workers_when_idle')`, which will quit workers only if they would have otherwise been idle.
 
-* If clients crash, the server will think the job is still running. Restart the server in this case.
+* Important note: if clients crash, the server will think the job is still running. Restart the server in this case.
 
 ### PBS / Torque / qsub
 
