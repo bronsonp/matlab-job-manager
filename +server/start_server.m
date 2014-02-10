@@ -3,7 +3,7 @@ function start_server
 
     jobs = containers.Map; % keys = hashes, values = jobs structure
     jobs_running = containers.Map; % keys = hashes, values = true
-    jobs_not_running = containers.Map; % keys = hashes, values = true
+    jobs_not_running = java.util.LinkedList; % storing hashes
 
     stats.jobs_completed = 0;
 
@@ -42,7 +42,7 @@ function start_server
                 % Add to jobs hashmap
                 jobs(job.hash) = job;
                 % and to the jobs_not_running list
-                jobs_not_running(job.hash) = true;
+                jobs_not_running.add(job.hash);
             end
             print_status();
           case 'ready_for_work'
@@ -51,11 +51,8 @@ function start_server
                 return;
             end
 
-            % Get a list of the jobs waiting to be enqueued
-            jobs_to_run = jobs_not_running.keys();
-
             % Check if we have jobs waiting
-            if isempty(jobs_to_run)
+            if jobs_not_running.size() == 0
                 % No jobs exist
                 if quit_when_idle
                     response.status = 'Quit';
@@ -63,8 +60,8 @@ function start_server
                     response.status = 'Wait';
                 end
             else
-                % Run the first job in the list
-                j = jobs(jobs_to_run{1});
+                % Run the first job in the queue
+                j = jobs(jobs_not_running.remove());
 
                 % Update the jobs hashmap
                 j.running = true;
@@ -72,9 +69,6 @@ function start_server
 
                 % List this job in jobs_running
                 jobs_running(j.hash) = true;
-
-                % Remove it from jobs_not_running
-                jobs_not_running.remove(j.hash);
 
                 % Send it to the worker
                 response.job = j;
