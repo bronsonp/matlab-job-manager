@@ -64,10 +64,9 @@ function config = apply_custom_settings(default_config, custom_config, custom_op
         if options.error_on_new_fields && ~isfield(config, field)
             % Error except for field names starting with x_
             if (numel(field) >= 2 && ~all(field(1:2) == 'x_')) || numel(field) < 2
-                error('settings:nofield', 'In %s there is no field: %s.\nValid fields are:\n%s%s', ...
+                error('settings:nofield', 'In %s there is no field: %s.\nValid fields are:\n%s', ...
                       options.config_name, field, ...
-                      fieldnames_description(default_config), ...
-                      guess_fieldname(default_config, field));
+                      fieldnames_description(default_config, field));
             end
         end
 
@@ -121,36 +120,35 @@ function config = apply_custom_settings(default_config, custom_config, custom_op
         r = any(strcmp(fieldname, fieldnames(obj)));
     end
 
-    function d = fieldnames_description(s, prefix)
-        if nargin < 2
-            prefix = '';
-        end
+    function d = fieldnames_description(s, invalid_field)
         d = '';
-        names = sort(fieldnames(s));
+        [names, values] = deep_fieldnames(s);
+        [~, sort_ix] = sort(lower(names));
+        names = names(sort_ix);
+        values = values(sort_ix);
         maxlen = max(cellfun(@numel, names));
-        format_str = sprintf('%%s%%s%%%is  %%-10s  %%s\\n', maxlen);
-        new_prefix = [prefix repmat(' ', [1 (maxlen+14)])];
-        for n = names'
-            n = n{1};
-            d = sprintf(format_str, d, prefix, n, class(s.(n)), as_string(s.(n), new_prefix));
+        format_str = sprintf('%%s%%-%is  %%-10s  %%s\\n', maxlen);
+        for i = 1:numel(names)
+            n = names{i};
+            v = values{i};
+            d = sprintf(format_str, d, n, class(v), as_string(v));
         end
+        
+        d = sprintf('%s%s', d, guess_fieldname(invalid_field, names));
     end
 
-    function s = as_string(v, prefix)
+    function s = as_string(v)
         if isobject(v) && any(strcmp(methods(v), 'char'))
             s = char(v);
         elseif isobject(v)
             s = '';
-        elseif isstruct(v)
-            s = sprintf('{{{\n%s\n%s}}}', fieldnames_description(v, prefix), prefix);
         else
             s = strtrim(evalc('disp(v)'));
         end
     end
 
-    function txt = guess_fieldname(s, field)
+    function txt = guess_fieldname(field, names)
     % Use the Levenshtein distance to suggest spelling corrections
-        names = fieldnames(s);
         txt = sprintf('\n\nInstead of "%s", did you mean:\n', field);
         distances = cellfun(@(s)(strdist(field, s)), names);
         [~,mapping] = sort(distances, 'ascend');
@@ -160,4 +158,30 @@ function config = apply_custom_settings(default_config, custom_config, custom_op
         end
     end
 
+    function [names, values] = deep_fieldnames(s, prefix)
+    % Return all fieldnames including those in substructures
+
+        if nargin < 2
+            prefix = '';
+        end
+
+        names = {};
+        values = {};
+
+        fnames = fieldnames(s);
+        for i = 1:numel(fnames)
+            name = fnames{i};
+            value = s.(name);
+            name = [prefix name];
+
+            if isstruct(value) || isobject(value)
+                [name, value] = deep_fieldnames(value, [prefix name '.']);
+                names = [names name];
+                values = [values value];
+            else
+                names{end+1} = name;
+                values{end+1} = value;
+            end
+        end
+    end
 end

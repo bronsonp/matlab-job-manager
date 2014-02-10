@@ -154,7 +154,7 @@ else
     % Check for complete results
     if ~run_opts.allow_partial_result && any(cellfun(@isempty, run_results))
         throw(MException('jobmgr:incomplete', ...
-                         'Jobs are still running. Wait for the jobs to finish and then try again.'));
+                         'Jobs are still running, and partial results are not allowed because run_opts.allow_partial_result is false. Wait for the jobs to finish and then try again.'));
     end
 
 end
