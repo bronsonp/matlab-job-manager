@@ -115,15 +115,11 @@ end
                     fprintf('memoise: %s has been modified.\n', file);
                 end
             catch E
-                % catch the error if the file didn't exist, because this simply means that
-                % it's a newly added dependency
-                if strcmp(E.identifier, 'MATLAB:load:couldNotReadFile')
-                    % This invalidates the cache
-                    fprintf('memoise: %s added as a dependency\n', file);
-                    cache_ok = false;
-                else
-                    throw(E);
-                end
+                % catch the error if the file didn't exist or we
+                % failed to read it, because in that case the cache
+                % is invalid
+                fprintf('memoise: %s added as a dependency\n', file);
+                cache_ok = false;
             end
         end
     end
