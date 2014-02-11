@@ -80,7 +80,13 @@ function h = struct_hash(struct, debug_mode)
         elseif isa(d, 'function_handle')
             md_update_uint8(uint8(func2str(d)));
         elseif isa(d, 'struct')
-            md_update_string(jobmgr.struct_hash(d));
+            if numel(d) == 1
+                md_update_string(jobmgr.struct_hash(d));
+            else
+                for a = 1:numel(d)
+                    md_update_string(sprintf('[%i]%s', a, jobmgr.struct_hash(d(a))));
+                end
+            end
         elseif any(strcmp(methods(d), 'char'))
             for a = 1:numel(d)
                 md_update_string(sprintf('[%i]%s', a, d(a).char()));

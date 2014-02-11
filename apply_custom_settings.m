@@ -45,11 +45,18 @@ function config = apply_custom_settings(default_config, custom_config, custom_op
 
     % Set the options for this function
     options = struct();
-    options.error_on_new_fields = true;
-    options.config_name = 'config';
-    % Oh the recursion!
-    if nargin == 3
-        options = jobmgr.apply_custom_settings(options, custom_options);
+    if nargin < 3
+        custom_options = struct();
+    end
+    if isfield(custom_options, 'error_on_new_fields')
+        options.error_on_new_fields = custom_options.error_on_new_fields;
+    else
+        options.error_on_new_fields = true;
+    end
+    if isfield(custom_options, 'config_name')
+        options.config_name = custom_options.config_name;
+    else
+        options.config_name = 'config';
     end
 
     % Start with the default settings
@@ -71,8 +78,9 @@ function config = apply_custom_settings(default_config, custom_config, custom_op
         end
 
         % Check the type
-        if ~isfield(config, field)
-            % No type checks for new fields
+        if ~isfield(config, field) || (isstruct(config.(field)) && isempty(config.(field)))
+            % No type checks for new fields or fields with no information
+            % about type.
             config.(field) = custom_config.(field);
         elseif isstruct(custom_config.(field))
             % Recursively process structure fields
@@ -171,7 +179,11 @@ function config = apply_custom_settings(default_config, custom_config, custom_op
         fnames = fieldnames(s);
         for i = 1:numel(fnames)
             name = fnames{i};
-            value = s.(name);
+            if isempty(s)
+                value = [];
+            else
+                value = s(1).(name);
+            end
             name = [prefix name];
 
             if isstruct(value) || isobject(value)
