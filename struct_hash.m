@@ -328,13 +328,10 @@ end
 
 % Function handle
 function m = serialize_handle(v)
-    % get the representation
-    rep = functions(v);
-    
     % deliberately ignore the workspaces of anonymous functions!
     % this breaks deserialisation but we don't care because the intent here
-    % is simply to hash the structure        
-    m = [uint8(151); serialize_string(rep.function)];
+    % is simply to hash the structure
+    m = [uint8(151); serialize_string(char(v))];
 end
 
 % *container* class to byte
