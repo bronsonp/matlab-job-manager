@@ -141,7 +141,7 @@ function config = apply_custom_settings(default_config, custom_config, custom_op
             v = values{i};
             d = sprintf(format_str, d, n, class(v), as_string(v));
         end
-        
+
         d = sprintf('%s%s', d, guess_fieldname(invalid_field, names));
     end
 
