@@ -23,7 +23,7 @@ config = struct();
 config.solver = @jobmgr.example.solver;
 
 % our "solver" requires two parameters:
-config.input = [1 2 3]; 
+config.input = [1 2 3];
 config.mode = 'double';
 
 % Set default display settings
@@ -42,7 +42,8 @@ fprintf('%s  Starting ...\n', display_config.run_name);
 switch config.mode
     case 'double'
         % just a silly example of using an external function with the
-        % file dependency correctly set up (see line 6)
+        % file dependency correctly set up (see the
+        % "FILE_DEPENDENCY" line above)
         result.output = jobmgr.example.double(config.input);
     case 'triple'
         result.output = 3 * config.input;
