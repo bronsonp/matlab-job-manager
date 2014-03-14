@@ -29,6 +29,12 @@ There are two ways to use this package:
 Basic example:
 
 ```matlab
+% Prepare the configs to process
+c1 = struct();
+c1.solver = @solver_fn; % you must set the "solver" field to a function handle
+...
+c2 = ...;
+c3 = ...;
 configs = {c1, c2, c3};  % Prepare a cell array of configs to process
 r = jobmgr.run(configs); % Jobs will run in parallel with the Matlab parfor loop
 % The return value is a cell array of results.
