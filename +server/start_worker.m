@@ -31,6 +31,7 @@ function start_worker(server_hostname, heartbeat)
 
             run_opts = struct();
             run_opts.run_names = {job.run_name};
+            run_opts.execution_method = 'for';
 
             r = jobmgr.run(job.config, run_opts);
 

@@ -26,6 +26,7 @@ function job(job_name)
 
     % Run the simulation, saving the results into the memoise cache
     run_opts.silent = false;
+    run_opts.execution_method = 'for';
     for i = 1:numel(configs)
         config = configs{i};
         fprintf('Running job %i of %i: %s\n', i, numel(configs), run_names{i});

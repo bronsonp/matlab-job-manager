@@ -62,8 +62,14 @@ end
 config_hashes = run_opts.config_hashes;
 if isempty(config_hashes)
     config_hashes = cell(N, 1);
-    parfor idx = 1:N
-        config_hashes{idx} = jobmgr.struct_hash(configs{idx});
+    if strcmp(run_opts.execution_method, 'for')
+        for idx = 1:N
+            config_hashes{idx} = jobmgr.struct_hash(configs{idx});
+        end
+    else
+        parfor idx = 1:N
+            config_hashes{idx} = jobmgr.struct_hash(configs{idx});
+        end
     end
 end
 
