@@ -6,6 +6,7 @@
 if [ -e "/etc/profile.d/modules.sh" ]; then
     source /etc/profile.d/modules.sh
     module load matlab
+    module load zeromq/3.2.4
 fi
 
 echo "Starting Matlab..."
