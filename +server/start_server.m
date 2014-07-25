@@ -14,7 +14,7 @@ function start_server
     transaction_count = 0;
 
     fprintf('Starting the server. Press Ctrl+C to quit.\n');
-    jobmgr.netsrv.start_server(@request_callback);
+    jobmgr.netsrv.start_server(@request_callback, 8148);
 
     function response = request_callback(request)
         response = struct();

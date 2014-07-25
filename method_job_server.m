@@ -21,7 +21,7 @@ function r = method_job_server(run_opts, configs, config_hashes, run_names)
             if strcmp(E.identifier, 'MATLAB:client_communicate:need_init')
                 fprintf('Job Manager: Assuming job server is running on localhost.\nIf this is incorrect, pass the server hostname to jobmgr.netsrv.start_client\n');
 
-                jobmgr.netsrv.start_client('localhost');
+                jobmgr.netsrv.start_client('localhost', 8148);
                 jobmgr.netsrv.make_request(request);
             else
                 rethrow(E);

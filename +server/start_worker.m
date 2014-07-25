@@ -8,7 +8,7 @@ function start_worker(server_hostname, heartbeat)
         heartbeat = 10; % seconds
     end
 
-    jobmgr.netsrv.start_client(server_hostname);
+    jobmgr.netsrv.start_client(server_hostname, 8148, 30000); % use a 30 second timeout
     statusline_hook_fn = @statusline_hook;
 
     while true
