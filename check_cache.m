@@ -15,11 +15,43 @@ end
 % Load the memoise configuration
 c = memoise_config(fn_handle);
 
+% Find the complete list of all dependencies required by the specified
+% function
+files = find_file_dependencies(c.filename, {c.filename});
+
+% Find the modification dates for each dependency
+    function date = find_modification_date(file)
+        file_struct = dir(file);
+        date = file_struct.date;
+    end
+dates = cellfun(@find_modification_date, files, 'UniformOutput', false);
+
 % Ensure the cache directory exists
 [~,~,~] = mkdir(c.cache_dir);
 
+% Print some statistics 
+if ~silent
+    num_files = 0;
+    num_megabytes = 0;
+    
+    for d1 = dir(c.cache_dir)'
+        if d1.name(1) == '.'
+            continue;
+        end
+        % two levels of directories
+        for d2 = dir(fullfile(c.cache_dir, d1.name))'
+            l = dir(fullfile(c.cache_dir, d1.name, d2.name));
+            l = l( ~[l.isdir] );
+            num_files = num_files + numel(l);
+            num_megabytes = num_megabytes + sum([l.bytes])/1024/1024;
+        end
+    end
+    
+    fprintf('Cache directory %s contains %i items totalling %.2f MB\n', c.cache_dir, num_files, num_megabytes);
+end
+
 % Check the cache
-cache_ok = check_cache();
+cache_ok = do_check_cache();
 
 % Override the cache check. Use with care!!!
 %cache_ok = true;
@@ -40,9 +72,9 @@ while ~cache_ok
         % Wait for the other process to finish
         pause(rand());
 
-        % Check the cache again
-        cache_ok = check_cache();
-
+        % Check the cache again, because the other process probably cleared
+        % the cache for us.
+        cache_ok = do_check_cache();
         continue;
     end
 
@@ -66,40 +98,11 @@ while ~cache_ok
 
     fprintf('Initialised a new empty cache directory at: %s\n', c.cache_dir);
     cache_ok = true;
-
-    if ~silent
-        % Print some statistics
-        num_files = 0;
-        num_megabytes = 0;
-
-        for d = dir(c.cache_dir)'
-            if d.name(1) == '.'
-                continue;
-            end
-            l = dir(fullfile(c.cache_dir, d.name));
-            l = l( ~[l.isdir] );
-            num_files = num_files + numel(l);
-            num_megabytes = num_megabytes + sum([l.bytes])/1024/1024;
-        end
-
-        fprintf('Cache directory %s contains %i items totalling %.2f MB\n', c.cache_dir, num_files, num_megabytes);
-    end
 end
 
 %%% Subfunctions
-    function cache_ok = check_cache
+    function cache_ok = do_check_cache
         % CHECK_CACHE Return true if the cache is up to date, and false otherwise.
-
-        % Check the modified date of the file we're memoising for, and any
-        % file dependencies
-        files = find_file_dependencies(c.filename, {c.filename});
-
-        % Find the modification dates for each file
-        function date = find_modification_date(file)
-            file_struct = dir(file);
-            date = file_struct.date;
-        end
-        dates = cellfun(@find_modification_date, files, 'UniformOutput', false);
 
         % Check whether the saved dates are still current
         cache_ok = true; % set to false if we find a file that has changed
