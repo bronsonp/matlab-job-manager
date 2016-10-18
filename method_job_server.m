@@ -16,16 +16,22 @@ function r = method_job_server(run_opts, configs, config_hashes, run_names)
         request.job.run_name = run_names{a};
 
         try
-            jobmgr.netsrv.make_request(request);
+            response = jobmgr.netsrv.make_request(request);
         catch E
             if strcmp(E.identifier, 'MATLAB:client_communicate:need_init')
                 fprintf('Job Manager: Assuming job server is running on localhost.\nIf this is incorrect, pass the server hostname to jobmgr.netsrv.start_client\n');
 
                 jobmgr.netsrv.start_client('localhost', 8148);
-                jobmgr.netsrv.make_request(request);
+                response = jobmgr.netsrv.make_request(request);
             else
                 rethrow(E);
             end
+        end
+        
+        % unpack the computed result
+        if ~isempty(response.result)
+            r{a} = response.result;
+            jobmgr.store(configs{a}.solver, config_hashes{a}, r{a});
         end
     end
 end

@@ -1,23 +1,26 @@
-# Job Manager
+# Matlab Job Manager
 
-Manages computational jobs. Includes:
+Manages computational jobs. Here, a job is a function (typically expensive to run) that is called with some input and returns some output. This Job Manager is useful if you have many such jobs to run (perhaps in parallel), or you want to cache the results of the function for the benefit of front end code such-as data visualisation.
+
+This library provides:
 * Memoisation cache. Previously computed results are loaded from the cache instead of being recomputed. The cache is automatically invalidated when the relevant code is modified.
 * Parallel execution of jobs with:
     * Matlab's Parallel Computing Toolbox, or
     * A compute cluster running a Portable Batch System (PBS) scheduler, or
-    * The included **job server** that distributes tasks to remote workers over a network connection.
+    * The included job server that distributes tasks to remote workers over a network connection.
 
-This framework manages functions with the signature:
+This framework applies to functions with the signature:
 
 ```matlab
 result = solver(config, display_config);
 ```
-
 where
 * `result` is the output of the computation (typically a struct)
 * `solver` is a function that implements the computation
 * `config` is a struct that includes all the settings necessary to describe the task to be performed. Any setting that could influence the return value must be included in this structure so that the memoisation cache can identify when to return a previously saved result.
 * `display_config` is a struct that includes settings that **cannot** influence the return value `result`. For example, this structure could specify how verbose the solver should be in printing messages to the command window.
+
+To use this library, you must organise your solver according to that function template. 
 
 There are two ways to use this package:
 
@@ -98,6 +101,7 @@ can be cleared when these dependencies change. See the "Dependency
 tagging" section for instructions.
 3. The solver must accept a string input `display_config.run_name` which gives a descriptive label to each job. Typically, this would be printed at the beginning of any status messages displayed during calculations. Run names are passed to the job manager with a cell array in `run_opts.run_names`.
 4. The solver must accept a logical input `display_config.animate` which is intended to specify whether to draw an animation of progress during the calculation. This defaults of `false` when running in the job manager. You can ignore this field if it is not relevant.
+5. The solver should check for the presence of a global variable `statusline_hook_fn`. If this variable exists, the solver should periodically call this function with a short string indicating current progress towards solving the task. The job server displays a table of currently executing jobs, and this status appears next to the job. Additionally, the server can detect crashed clients if a specified time has passed since the last status update. Lost jobs can be resubmitted to a new client.
 
 An example solver that implements this API is included in the `+example` folder.
 
@@ -139,7 +143,7 @@ The method used to run the jobs is specified in the `run_opts.execution_method` 
     run_opts.execution_method = 'parfor';
 
 * Jobs are run in parallel using `parfor`.
-* Start worker threads with `matlabpool` first.
+* Start worker threads with `parpool` first.
 * `jobmgr.run` does not return until all results are computed.
 
 ### Job Server
@@ -156,14 +160,27 @@ It consists of three parts:
 
 To use the job server:
 
-1. Start up another copy of Matlab *on your local machine* and run `jobmgr.server.start_server`.
+1. Start up another copy of Matlab (typically on your local machine) and run `jobmgr.server.start_server`.
 2. On the remote machine(s), start the workers with any of:
   - `$ ./+jobmgr/+server/start-workers-locally.sh hostname-of-machine-running-the-server number-of-workers-to-start` This will run the specified number of workers on the machine where you run this command.
   - `$ ./+jobmgr/+server/start-workers-with-qsub.sh hostname-of-machine-running-the-server number-of-workers-to-start` This will run the specified number of workers on your compute cluster using the `qsub` tool for job submission.
   - To roll your own mechanism for starting workers, you need to call the Matlab function `jobmgr.server.start_worker('server_hostname')` where `server_hostname` is the hostname or IP address of the machine running the job server.
 3. Workers will poll the job server every 10 seconds for new jobs. You must manually quit the workers when you are finished. You can tell the server to immediately kill all workers with: `jobmgr.server.control('quit_workers')`. Alternatively, you can quit the job server and the workers will quit after a timeout. For a controlled shutdown, run `jobmgr.server.control('quit_workers_when_idle')`, which will quit workers only if they would have otherwise been idle.
 
-* Important note: if clients crash, the server will think the job is still running. Restart the server in this case.
+#### Important note regarding status updates
+The job server provides a mechanism for the solver to communicate a progress update, such as a percentage complete or an estimated time remaining. Solvers should check for a global variable `statusline_hook_fn`, as described above. The usage of this function hook is:
+
+```matlab
+global statusline_hook_fn;
+
+% Pass to the job manager (if running)
+if ~isempty(statusline_hook_fn)
+    feval(statusline_hook_fn, "35% complete; 4 minutes remaining");
+end
+```
+If the job server does not receive an update in every *N* minutes, it will assume that the client has crashed and will resend the same job to the next idle worker. The value of *N* is configured at the top of the `+jobmgr/+server/start_server.m` file. It defaults to **two minutes**.
+
+An example solver that implements the entire API is included in the `+example` folder.
 
 ### PBS / Torque / qsub
 

@@ -38,7 +38,7 @@ display_config = jobmgr.apply_custom_settings(display_config, custom_display_con
     struct('config_name', 'display_config'));
 
 % Do the work
-fprintf('%s  Starting ...\n', display_config.run_name);
+statusline('Starting ...');
 switch config.mode
     case 'double'
         % just a silly example of using an external function with the
@@ -50,6 +50,32 @@ switch config.mode
     otherwise
         error('Unknown mode setting.');
 end
-fprintf('%s  Finished.\n', display_config.run_name);
+statusline('Finished.');
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Print status
+function statusline(varargin)
+    % The job manager sets a global variable statusline_hook_fn if running
+    % remotely. This function provides a mechanism to update the job server
+    % on the status of the job. As shown below, call this function with a
+    % single string argument (typically one line long), to be displayed on
+    % the job server against this particular task. Display a percentage
+    % complete or other metric as appropriate. Periodic updates (via this
+    % mechanism) are used to detect that the remote worker is still
+    % running. Jobs can be resent if no updates have been received within a
+    % configured time window.
+    global statusline_hook_fn;
+
+    % Use printf style formatting to process the input
+    status = sprintf(varargin{:});
+    % Prepend the run name and print
+    fprintf('%s  %s\n', display_config.run_name, status);
+
+    % Pass to the job manager (if running)
+    if ~isempty(statusline_hook_fn)
+        feval(statusline_hook_fn, status);
+    end
+end
 
 end

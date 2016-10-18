@@ -33,10 +33,10 @@ config = struct();
 config.solver = @jobmgr.example.solver;
 
 c1 = config;
-c1.input = rand(10, 1);
+c1.input = 1:10;
 
 c2 = config;
-c2.input = rand(10, 1);
+c2.input = 1:10;
 c2.mode = 'triple';
 
 configs = {c1, c2};

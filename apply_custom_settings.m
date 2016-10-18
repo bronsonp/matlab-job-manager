@@ -24,6 +24,10 @@ function config = apply_custom_settings(default_config, custom_config, custom_op
 %     If the default value includes a user-defined class, then the custom config can use a plain
 %     structure to set fields on this class.
 %
+%     If the default value is a user-defined class and the custom value is
+%     a simple type, a method 'setValue' will be called on the user-defined
+%     class, with the custom value passed as the argument.
+%
 % Fields whose name begins with 'x_' can be inserted into the final struct without any checks
 % against the default config. The intent is to allow "quick and dirty" additions to
 % the configuration structure that do not require the cooperation of the main function.
@@ -37,6 +41,11 @@ function config = apply_custom_settings(default_config, custom_config, custom_op
 %     Whether it is an error to introduce new fields in custom_config that do not exist
 %     in the default_config. Usually this caused by a typing error or misspelling of the
 %     intended field, hence the reason that this generates an error.
+%
+%     "new_field_prefixes" (default empty cell, {})
+%     A cell array of strings giving prefixes under which new fields may be
+%     inserted. Any new field that begins with a prefix in this list will
+%     be allowed.
 %
 %     "config_name" (default 'config')
 %     The name of the config structure, used in generating error messages.
@@ -52,6 +61,15 @@ function config = apply_custom_settings(default_config, custom_config, custom_op
         options.error_on_new_fields = custom_options.error_on_new_fields;
     else
         options.error_on_new_fields = true;
+    end
+    if isfield(custom_options, 'new_field_prefixes')
+        if iscell(custom_options.new_field_prefixes)
+            options.new_field_prefixes = custom_options.new_field_prefixes;
+        else
+            options.new_field_prefixes = {custom_options.new_field_prefixes};
+        end
+    else
+        options.new_field_prefixes = {};
     end
     if isfield(custom_options, 'config_name')
         options.config_name = custom_options.config_name;
@@ -69,8 +87,16 @@ function config = apply_custom_settings(default_config, custom_config, custom_op
 
         % Check if the field already exists
         if options.error_on_new_fields && ~isfield(config, field)
-            % Error except for field names starting with x_
-            if (numel(field) >= 2 && ~all(field(1:2) == 'x_')) || numel(field) < 2
+            accept_field = false;
+            % Permit fields beginning with x_
+            if numel(field) >= 2 && all(field(1:2) == 'x_')
+                accept_field = true;
+            % Permit fields that begin with prefixes in the list
+            elseif any(cellfun(@(prefix)~isempty(strfind(field, prefix)), options.new_field_prefixes))
+                accept_field = true;
+            end
+            
+            if ~accept_field
                 error('settings:nofield', 'In %s there is no field: %s.\nValid fields are:\n%s', ...
                       options.config_name, field, ...
                       fieldnames_description(default_config, field));
@@ -86,6 +112,20 @@ function config = apply_custom_settings(default_config, custom_config, custom_op
             % Recursively process structure fields
             new_options = options;
             new_options.config_name = [options.config_name '.' field];
+            % If the field name matches one of the new_field_prefixes,
+            % disable new field checking.
+            if any(strcmp(field, options.new_field_prefixes))
+                new_options.error_on_new_fields = false;
+            end
+            
+            % Prune the prefixes that are recursively processed.
+            % Select only the ones that begin with this fieldname and a dot
+            mask = cellfun(@(prefix)~isempty(strfind(prefix, [field '.'])), options.new_field_prefixes);
+            new_options.new_field_prefixes = options.new_field_prefixes(mask);
+            % Delete the field name and a dot from each prefix
+            new_options.new_field_prefixes = cellfun(@(prefix)strrep(prefix, [field '.'], ''), new_options.new_field_prefixes, 'UniformOutput', false);
+
+            % Recurse
             config.(field) = jobmgr.apply_custom_settings(config.(field), custom_config.(field), new_options);
         elseif iscell(config.(field)) && ~iscell(custom_config.(field))
             % If the default config has a cell here, force the input to be a cell
@@ -110,6 +150,9 @@ function config = apply_custom_settings(default_config, custom_config, custom_op
                 else
                     config.(field) = custom_config.(field);
                 end
+            elseif isobject(config.(field)) && ~isobject(custom_config.(field))
+                % a simple type is being set on a user-defined class
+                config.(field) = config.(field).setValue(custom_config.(field));
             else
                 % make sure the objects have the same class
                 if strcmp(class(config.(field)), class(custom_config.(field)))

@@ -30,7 +30,9 @@ end
 if nargin < 2
     custom_run_opts = struct();
 end
-run_opts = jobmgr.apply_custom_settings(run_opts, custom_run_opts, struct('config_name', 'run_opts'));
+run_opts = jobmgr.apply_custom_settings(run_opts, custom_run_opts, ...
+    struct('config_name', 'run_opts', ...
+           'new_field_prefixes', 'display_config')); % allow arbitrary (solver-specific) fields under display_config
 
 % Count how many inputs and pre-initialise the output
 N = numel(configs);
