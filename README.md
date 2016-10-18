@@ -20,7 +20,7 @@ where
 * `config` is a struct that includes all the settings necessary to describe the task to be performed. Any setting that could influence the return value must be included in this structure so that the memoisation cache can identify when to return a previously saved result.
 * `display_config` is a struct that includes settings that **cannot** influence the return value `result`. For example, this structure could specify how verbose the solver should be in printing messages to the command window.
 
-To use this library, you must organise your solver according to that function template. 
+To use this library, you must organise your solver according to that function template.
 
 There are two ways to use this package:
 
@@ -66,12 +66,12 @@ This code assumes that it will be placed in a Matlab package called `+jobmgr`. Y
 The recommended way to install is to add this as a git subtree to your existing project.
 
     $ git remote add -f matlab-job-manager https://github.com/bronsonp/matlab-job-manager.git
-    $ git subtree add --prefix +jobmgr matlab-job-manager master --squash
+    $ git subtree add --prefix +jobmgr matlab-job-manager master
 
 At a later time, if there are updates released that you wish to add to your project:
 
     $ git fetch matlab-job-manager
-    $ git subtree pull --prefix +jobmgr matlab-job-manager --squash
+    $ git subtree pull --prefix +jobmgr matlab-job-manager master
 
 If you do not intend to use git subtree, you can simply clone the repository:
 
