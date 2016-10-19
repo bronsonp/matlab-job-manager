@@ -117,7 +117,7 @@ function config = apply_custom_settings(default_config, custom_config, custom_op
             if any(strcmp(field, options.new_field_prefixes))
                 new_options.error_on_new_fields = false;
             end
-            
+
             % Prune the prefixes that are recursively processed.
             % Select only the ones that begin with this fieldname and a dot
             mask = cellfun(@(prefix)~isempty(strfind(prefix, [field '.'])), options.new_field_prefixes);
@@ -125,8 +125,12 @@ function config = apply_custom_settings(default_config, custom_config, custom_op
             % Delete the field name and a dot from each prefix
             new_options.new_field_prefixes = cellfun(@(prefix)strrep(prefix, [field '.'], ''), new_options.new_field_prefixes, 'UniformOutput', false);
 
-            % Recurse
-            config.(field) = jobmgr.apply_custom_settings(config.(field), custom_config.(field), new_options);
+            % Recurse. In the case of structure fields, process each field
+            % in turn (so that default values get inserted in each element).
+            template = config.(field)(1);
+            for a = 1:numel(custom_config.(field))
+                config.(field)(a) = jobmgr.apply_custom_settings(template, custom_config.(field)(a), new_options);
+            end
         elseif iscell(config.(field)) && ~iscell(custom_config.(field))
             % If the default config has a cell here, force the input to be a cell
             config.(field) = {custom_config.(field)};
