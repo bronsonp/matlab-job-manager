@@ -76,6 +76,11 @@ function config = apply_custom_settings(default_config, custom_config, custom_op
     else
         options.config_name = 'config';
     end
+    if isfield(custom_options, 'ignore_empty_items')
+        options.ignore_empty_items = custom_options.ignore_empty_items;
+    else
+        options.ignore_empty_items = false;
+    end
 
     % Start with the default settings
     config = default_config;
@@ -103,6 +108,11 @@ function config = apply_custom_settings(default_config, custom_config, custom_op
             end
         end
 
+        % Ignore this item?
+        if options.ignore_empty_items && isempty(custom_config.(field))
+            continue;
+        end
+        
         % Check the type
         if ~isfield(config, field) || (isstruct(config.(field)) && isempty(config.(field)))
             % No type checks for new fields or fields with no information
@@ -125,8 +135,12 @@ function config = apply_custom_settings(default_config, custom_config, custom_op
             % Delete the field name and a dot from each prefix
             new_options.new_field_prefixes = cellfun(@(prefix)strrep(prefix, [field '.'], ''), new_options.new_field_prefixes, 'UniformOutput', false);
 
-            % Recurse. In the case of structure fields, process each field
-            % in turn (so that default values get inserted in each element).
+            % In the case of structure arrays, process each field in turn 
+            % (so that default values get inserted in each element). Also,
+            % set a flag to ignore empty items in the custom config
+            % (because matlab structure arrays silently insert empty items
+            % if a given field is unspecified).
+            new_options.ignore_empty_items = true;
             template = config.(field)(1);
             for a = 1:numel(custom_config.(field))
                 config.(field)(a) = jobmgr.apply_custom_settings(template, custom_config.(field)(a), new_options);
@@ -158,6 +172,10 @@ function config = apply_custom_settings(default_config, custom_config, custom_op
             elseif isobject(config.(field)) && ~isobject(custom_config.(field))
                 % a simple type is being set on a user-defined class
                 config.(field) = config.(field).setValue(custom_config.(field));
+            elseif isstruct(config.(field)) && isempty(custom_config.(field))
+                % Keep the structure (don't overwrite it).
+                % This occurs if the custom config has a structure array
+                % and the user didn't set some fields 
             else
                 % make sure the objects have the same class
                 if strcmp(class(config.(field)), class(custom_config.(field)))
