@@ -131,6 +131,7 @@ function config = apply_custom_settings(default_config, custom_config, custom_op
             for a = 1:numel(custom_config.(field))
                 config.(field)(a) = jobmgr.apply_custom_settings(template, custom_config.(field)(a), new_options);
             end
+
         elseif iscell(config.(field)) && ~iscell(custom_config.(field))
             % If the default config has a cell here, force the input to be a cell
             config.(field) = {custom_config.(field)};
