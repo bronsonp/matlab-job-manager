@@ -135,17 +135,22 @@ function config = apply_custom_settings(default_config, custom_config, custom_op
             % Delete the field name and a dot from each prefix
             new_options.new_field_prefixes = cellfun(@(prefix)strrep(prefix, [field '.'], ''), new_options.new_field_prefixes, 'UniformOutput', false);
 
-            % In the case of structure arrays, process each field in turn 
-            % (so that default values get inserted in each element). Also,
-            % set a flag to ignore empty items in the custom config
-            % (because matlab structure arrays silently insert empty items
-            % if a given field is unspecified).
-            new_options.ignore_empty_items = true;
-            template = config.(field)(1);
-            for a = 1:numel(custom_config.(field))
-                config.(field)(a) = jobmgr.apply_custom_settings(template, custom_config.(field)(a), new_options);
+            if isempty(fieldnames(config.(field)))
+                % Apply without further check (allow new fields to be added
+                % onto empty structures)
+                config.(field) = custom_config.(field);
+            else
+                % In the case of structure arrays, process each field in turn 
+                % (so that default values get inserted in each element). Also,
+                % set a flag to ignore empty items in the custom config
+                % (because matlab structure arrays silently insert empty items
+                % if a given field is unspecified).
+                new_options.ignore_empty_items = true;
+                template = config.(field)(1);
+                for a = 1:numel(custom_config.(field))
+                    config.(field)(a) = jobmgr.apply_custom_settings(template, custom_config.(field)(a), new_options);
+                end
             end
-
         elseif iscell(config.(field)) && ~iscell(custom_config.(field))
             % If the default config has a cell here, force the input to be a cell
             config.(field) = {custom_config.(field)};
