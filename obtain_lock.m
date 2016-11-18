@@ -14,7 +14,7 @@ function [have_lock, lock_h] = obtain_lock(target_dir)
 lock_h = struct([]);
 
 % Generate a unique name for our lock
-hostname = char(java.net.InetAddress.getLocalHost.getHostName);
+hostname = jobmgr.get_hostname();
 pid = feature('getpid');
 lock_name = sprintf('_jobmgr-lock.%s.%i', hostname, pid);
 lock_path = fullfile(target_dir, lock_name);
