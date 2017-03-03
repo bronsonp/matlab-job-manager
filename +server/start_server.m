@@ -24,9 +24,19 @@ function start_server(timeout_seconds)
     update_timer = timer('Period', 5, 'ExecutionMode', 'fixedRate', 'TimerFcn', @print_status);
     start(update_timer);
     
-    fprintf('Starting the server. Press Ctrl+C to quit.\n');
-    jobmgr.netsrv.start_server(@request_callback, 8148);
-
+    % Run the server inside a subfunction so that when it quits, the
+    % garbage collector will trigger the onCleanup event. We can't do this
+    % here (in the top level) because the timer holds a handle to the
+    % sub-function @print_status, which closes over any variables created
+    % at this level and hence prevents the GC from clearing them even after
+    % the function has quit.
+    start_server();
+    function start_server
+        canary = onCleanup(@()stop(update_timer));
+        fprintf('Starting the server. Press Ctrl+C to quit.\n');
+        jobmgr.netsrv.start_server(@request_callback, 8148);
+    end
+    
     function response = request_callback(request)
         response = struct();
         response.status = 'OK';
@@ -115,7 +125,7 @@ function start_server(timeout_seconds)
         print_status();
     end
 
-    function print_status(~, ~)
+    function print_status(timer, ~)
         persistent last_print;
         if isempty(last_print)
             last_print = tic();

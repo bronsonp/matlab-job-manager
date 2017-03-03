@@ -10,8 +10,9 @@ run_opts.skip_cache_check = false; % skip the jobmgr.check_cache call. (Use with
 run_opts.silent = false;
 run_opts.run_names = {};
 run_opts.display_config.animate = false;
-run_opts.execution_method = 'parfor'; % the method used to run the jobs. Valid options:
-                % 'parfor' - use parfor to use a local matlabpool
+run_opts.execution_method = 'parfeval'; % the method used to run the jobs. Valid options:
+                % 'parfor' - use parfor loop
+                % 'parfeval' - use the parfeval() function
                 % 'qsub' - submit each config to qsub (return
                 % immediately; this option is asynchronous)
                 % 'none' - don't actually run the configs that aren't

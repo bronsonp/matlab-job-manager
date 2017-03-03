@@ -1,12 +1,13 @@
 #!/bin/bash
 #PBS -l pmem=2gb
-#PBS -l nodes=1
+#PBS -l nodes=1:ppn=1
 #PBS -l walltime=48:00:00
 
 if [ -e "/etc/profile.d/modules.sh" ]; then
+    # This is needed on my university's cluster to enable access to the respective software packages
     source /etc/profile.d/modules.sh
     module load matlab
-    module load zeromq/3.2.4
+    module load zeromq/4.0.4
 fi
 
 echo "Starting Matlab..."

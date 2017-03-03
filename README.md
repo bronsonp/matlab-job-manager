@@ -138,6 +138,15 @@ You can use wildcards as indicated above. Tags with `FILE_DEPENDENCY` refer to t
 
 The method used to run the jobs is specified in the `run_opts.execution_method` field (in the second argument to `jobmgr.run`). The following execution methods are defined:
 
+### Matlab's Parallel Computing Toolbox (parfeval)
+
+    run_opts.execution_method = 'parfeval';
+
+* This is the default method.
+* Jobs are run in parallel using `parfeval`.
+* Start worker threads with `parpool` first.
+* `jobmgr.run` does not return until all results are computed.
+
 ### Matlab's Parallel Computing Toolbox (parfor)
 
     run_opts.execution_method = 'parfor';
