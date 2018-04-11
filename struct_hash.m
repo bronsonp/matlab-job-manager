@@ -26,9 +26,23 @@ function h = struct_hash(s)
         fields = fieldnames(s);
         for i = 1:numel(fields)
             field = fields{i};
+            if isa(field, 'handle')
+                % Don't mutate Handle classes for the sake of more stable
+                % serialisation
+                continue;
+            end
+            % Skip dependent properties (since we can't write to them)
+            if isobject(s)
+                fieldinfo = findprop(s, field);
+                if fieldinfo.Dependent
+                    continue;
+                end
+            end
+            % Replace function handles with strings
             if isa(s.(field), 'function_handle')
                 s.(field) = ['function_handle: ' char(s.(field))];
             elseif isstruct(s.(field)) || isobject(s.(field))
+                % Recurse into structures and objects
                 for j = 1:numel(s.(field))
                     s.(field)(j) = sanitise_struct(s.(field)(j));
                 end
