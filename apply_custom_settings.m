@@ -221,6 +221,8 @@ function config = apply_custom_settings(default_config, custom_config, custom_op
             s = char(v);
         elseif isobject(v)
             s = '';
+        elseif numel(v) > 10
+            s = ['[' strjoin(arrayfun(@num2str, size(v), 'UniformOutput', false), 'x') ' ' class(v) ']'];
         else
             s = strtrim(evalc('disp(v)'));
         end
