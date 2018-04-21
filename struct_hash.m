@@ -32,7 +32,7 @@ function h = struct_hash(s)
                 continue;
             end
             % Skip dependent properties (since we can't write to them)
-            if isobject(s)
+            if isa(s, 'handle')
                 fieldinfo = findprop(s, field);
                 if fieldinfo.Dependent
                     continue;
