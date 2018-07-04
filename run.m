@@ -64,7 +64,7 @@ end
 config_hashes = run_opts.config_hashes;
 if isempty(config_hashes)
     config_hashes = cell(N, 1);
-    if strcmp(run_opts.execution_method, 'for')
+    if strcmp(run_opts.execution_method, 'for') || N < 50
         for idx = 1:N
             config_hashes{idx} = jobmgr.struct_hash(configs{idx});
         end

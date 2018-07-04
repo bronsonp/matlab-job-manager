@@ -4,7 +4,7 @@ function start_server(timeout_seconds)
     % How long can we wait without an update before we assume that a client
     % has been lost, and resubmit that job to a different worker?
     if nargin < 1
-        timeout_seconds = 2 * 60; % two minutes
+        timeout_seconds = 10 * 60; % 10 minutes
     end
 
     % Store scheduled jobs here
@@ -16,7 +16,7 @@ function start_server(timeout_seconds)
 
     % Are we currently quitting?
     quitting = false;
-    quit_when_idle = false;
+    quit_when_idle = true;
 
     transaction_count = 0;
     
@@ -34,91 +34,125 @@ function start_server(timeout_seconds)
     function start_server
         canary = onCleanup(@()stop(update_timer));
         fprintf('Starting the server. Press Ctrl+C to quit.\n');
-        jobmgr.netsrv.start_server(@request_callback, 8148);
+        jobmgr.netsrv.start_server(@request_callback, jobmgr.server.tcp_port);
     end
     
     function response = request_callback(request)
         response = struct();
         response.status = 'OK';
         transaction_count = transaction_count + 1;
-
+        
         switch request.msg
-          case 'quit_workers'
-            quitting = true;
-          case 'quit_workers_when_idle'
-            quit_when_idle = true;
-          case 'accept_workers'
-            quitting = false;
-          case 'enqueue_job'
-            job = request.job;
-
-            % Have we already computed the answer?
-            [result, in_cache] = jobmgr.recall(job.config.solver, job.hash);
-            response.result = result;
-            
-            % Silently discard jobs that are already running
-            if ~in_cache && ~jobs.isKey(job.hash)
-                % Job is new
-                job.running = false;
-                job.last_touch = now();
-                % Add to jobs hashmap
-                jobs(job.hash) = job;
-            end
-          case 'ready_for_work'
-            if quitting
-                response.status = 'Quit';
-                return;
-            end
-
-            response.status = 'Wait';
-            % Look for a job to do
-            hashes = keys(jobs);
-            for i = randperm(numel(hashes))
-                job = jobs(hashes{i});
-                if ~job.running || (now() - job.last_touch) * 24 * 60 * 60 > timeout_seconds
-                    % Send to the worker
-                    response.status = 'OK';
-                    response.job = job;
-                    
-                    % Update our list
-                    job.running = true;
-                    job.last_touch = now();
-                    jobs(hashes{i}) = job;
-                    break;
+            case 'quit_workers'
+                quitting = true;
+            case 'quit_workers_when_idle'
+                quit_when_idle = true;
+            case 'accept_workers'
+                quitting = false;
+                quit_when_idle = false;
+            case 'set_timeout'
+                if isfield(request, 'argument') && isnumeric(request.argument) && isscalar(request.argument) && request.argument > 0
+                    timeout_seconds = request.argument;
+                else
+                    response.status = 'Error';
                 end
-            end
-            
-          case 'update_job'
-            % Silently ignore jobs that we don't know about
-            if jobs.isKey(request.hash)
-                % Load it from the hashmap
-                job = jobs(request.hash);
-
-                % Set the status
-                job.status = request.status;
-                job.last_touch = now();
-
-                % Save it back into the jobs hashmap
-                jobs(request.hash) = job;
-            end
-
-          case 'finish_job'
-            % Load the job that we finished
-            job = request.job;
-            
-            % Save the result
-            jobmgr.store(job.config.solver, job.hash, request.result);
-
-            % Remove it from the store
-            if jobs.isKey(job.hash)
-                jobs.remove(job.hash);
-            end
-
-            % Update the stats
-            stats.jobs_completed = stats.jobs_completed + 1;
-
-          otherwise
-            fprintf('Received an unknown message: %s\n', request.msg);
+            case 'enqueue_job'
+                job = request.job;
+                
+                % Have we already computed the answer?
+                [result, in_cache] = jobmgr.recall(job.config.solver, job.hash);
+                response.result = result;
+                
+                % Silently discard jobs that are already running
+                if ~in_cache && ~jobs.isKey(job.hash)
+                    % Job is new
+                    job.running = false;
+                    job.last_touch = now();
+                    % Add to jobs hashmap
+                    jobs(job.hash) = job;
+                end
+            case 'ready_for_work'
+                if quitting
+                    response.status = 'Quit';
+                    return;
+                end
+                
+                response.status = 'Wait';
+                % Look for a job to do
+                hashes = keys(jobs);
+                % First find jobs that we've never sent to any worker
+                for i = randperm(numel(hashes))
+                    job = jobs(hashes{i});
+                    if ~job.running
+                        % Send to the worker
+                        response.status = 'OK';
+                        response.job = job;
+                        
+                        % Update our list
+                        job.running = true;
+                        job.last_touch = now();
+                        jobs(hashes{i}) = job;
+                        break;
+                    end
+                end
+                % If all jobs have been submitted, re-send any where the worker
+                % has disappeared (e.g. crashed, shut down, ...)
+                if ~strcmp(response.status, 'OK')
+                    for i = randperm(numel(hashes))
+                        job = jobs(hashes{i});
+                        if (now() - job.last_touch) * 24 * 60 * 60 > timeout_seconds
+                            % Send to the worker
+                            response.status = 'OK';
+                            response.job = job;
+                            
+                            % Update our list
+                            job.running = true;
+                            job.last_touch = now();
+                            jobs(hashes{i}) = job;
+                            break;
+                        end
+                    end
+                end
+                
+                if strcmp(response.status, 'Wait') && quit_when_idle
+                    % If we didn't find any jobs and we have been
+                    % instructed to quit workers when idle, tell them to
+                    % quit.
+                    response.status = 'Quit';
+                end
+                
+            case 'update_job'
+                % Silently ignore jobs that we don't know about
+                if jobs.isKey(request.hash)
+                    % Load it from the hashmap
+                    job = jobs(request.hash);
+                    
+                    % Set the status
+                    job.status = request.status;
+                    job.last_touch = now();
+                    job.running = true; % if the server restarts while a client is still running
+                    
+                    % Save it back into the jobs hashmap
+                    jobs(request.hash) = job;
+                end
+                
+            case 'finish_job'
+                % Load the job that we finished
+                job = request.job;
+                
+                % Save the result
+                jobmgr.store(job.config.solver, job.hash, request.result);
+                
+                % Remove it from the store
+                if jobs.isKey(job.hash)
+                    jobs.remove(job.hash);
+                end
+                
+                % Update the stats
+                stats.jobs_completed = stats.jobs_completed + 1;
+                
+            otherwise
+                fprintf('Received an unknown message: %s\n', request.msg);
         end
         
         % Update the display
@@ -137,7 +171,7 @@ function start_server(timeout_seconds)
 
         clc;
 
-        fprintf('Job Server. Press Ctrl+C to quit.\n');
+        fprintf('Job Server. Listening on port %i. Press Ctrl+C to quit.\n', jobmgr.server.tcp_port);
 
         if quitting
             fprintf('*** Telling workers to quit ***\n');
@@ -161,8 +195,9 @@ function start_server(timeout_seconds)
             end
         end  
 
-        fprintf('[%i running / %i queued] [%.1f TPS] [%i completed]\n', ...
-            jobs_running, jobs.Count, transaction_count/toc(last_print), stats.jobs_completed);
+        fprintf('[%i running / %i queued] [%.1f TPS] [%i completed] [Worker timeout=%s]\n', ...
+            jobs_running, jobs.Count, transaction_count/toc(last_print), stats.jobs_completed, ...
+            jobmgr.lib.seconds_to_readable_time(timeout_seconds));
         last_print = tic();
         transaction_count = 0;
 
@@ -179,7 +214,13 @@ function start_server(timeout_seconds)
             end
 
             fprintf('%s ', job.hash(1:12));
-            fprintf('%6.1f s ', (now() - job.last_touch) * 24 * 60 * 60);
+            age = (now() - job.last_touch) * 24 * 60 * 60;
+            fprintf('%6.0fs', age);
+            if age > timeout_seconds && job.running
+                fprintf('? ');
+            else
+                fprintf('  ');
+            end
             fprintf(run_name_format, job.run_name);
 
             if ~job.running

@@ -8,6 +8,11 @@ else
     desc = '';
 end
 
+if isinf(t)
+    desc = 'infinite';
+    return;
+end
+
 % Hours?
 hours = floor(t / 3600);
 if hours > 0
