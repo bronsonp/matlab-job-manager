@@ -18,7 +18,12 @@ function start_server(timeout_seconds)
     quitting = false;
     quit_when_idle = true;
 
+    % Measure the rate of transactions
     transaction_count = 0;
+    
+    % Check which function handles we have served results for, so that we
+    % can check the memoise cache if this is a new function handle
+    functions_memoised = containers.Map();
     
     % Status update timer
     update_timer = timer('Period', 5, 'ExecutionMode', 'fixedRate', 'TimerFcn', @print_status);
@@ -58,6 +63,12 @@ function start_server(timeout_seconds)
                 end
             case 'enqueue_job'
                 job = request.job;
+                
+                % Have we initialised memoisation of this solver?
+                if ~functions_memoised.isKey(char(job.config.solver))
+                    functions_memoised(char(job.config.solver)) = true;
+                    jobmgr.check_cache(job.config.solver);
+                end
                 
                 % Have we already computed the answer?
                 [result, in_cache] = jobmgr.recall(job.config.solver, job.hash);
