@@ -176,7 +176,7 @@ function start_server(timeout_seconds)
             last_print = tic();
         end
         
-        if toc(last_print) < 2 && jobs.Count > 24 && ~quitting
+        if toc(last_print) < 2 && ~quitting
             return;
         end
 
