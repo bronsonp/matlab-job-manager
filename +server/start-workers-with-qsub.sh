@@ -17,6 +17,6 @@ mkdir -p "$WORKER_DIR"
 for i in $(seq 1 $2); do
   stdout="$WORKER_DIR/${hash}_${i}.stdout"
   stderr="$WORKER_DIR/${hash}_${i}.stderr"
-  qsub -d "`pwd`" -e "$stderr" -o "$stdout" -N "Worker_${hash}_${i}" -v "server_hostname=$1" "./+jobmgr/+server/worker-job.sh"
+  qsub -e "$stderr" -o "$stdout" -N "Worker_${hash}_${i}" -v "server_hostname=$1" "./+jobmgr/+server/worker-job.sh"
   sleep 0.1 # so as not to hammer the cluster's job scheduler
 done

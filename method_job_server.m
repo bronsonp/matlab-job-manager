@@ -29,6 +29,15 @@ function r = method_job_server(run_opts, configs, config_hashes, run_names)
         end
         
         % unpack the computed result
+        if strcmp(response.status, 'Error')
+            if isfield(response, 'message')
+                message = sprintf('\n\tMessage from server: %s', response.message);
+            else
+                message = '';
+            end
+            error('Failed to submit job to server.\n\tJob name: %s\n\tHash: %s%s', run_names{a}, config_hashes{a}, message);
+        end
+        
         if ~isempty(response.result)
             r{a} = response.result;
             jobmgr.store(configs{a}.solver, config_hashes{a}, r{a});

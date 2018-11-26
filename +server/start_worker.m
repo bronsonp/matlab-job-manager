@@ -26,13 +26,17 @@ function start_worker(server_hostname, heartbeat)
             % Run the job
             job = response.job;
 
-            assert(strcmp(jobmgr.struct_hash(job.config), job.hash), ...
-                   'Supplied hash does not match with actual hash.');
+            % We could check that the hash matches, but this is unreliable
+            % since the hash is computed over the undocumented internal
+            % matlab serialisation format that may not be stable between
+            % versions. Just use the client-computed hash without question.
+%             assert(strcmp(jobmgr.struct_hash(job.config), job.hash), ...
+%                    'Supplied hash does not match with actual hash.');
 
             run_opts = struct();
             run_opts.run_names = {job.run_name};
+            run_opts.config_hashes = {job.hash};
             run_opts.execution_method = 'for';
-
             r = jobmgr.run(job.config, run_opts);
 
             request = struct();
