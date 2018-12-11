@@ -8,7 +8,7 @@ echo "Running on host: `hostname`"
 
 # In case many jobs are starting in parallel, delay a random amount so as
 # to be kinder on the Matlab licensing server & HPC filesystem.
-sleep $[ ( $RANDOM % 10 ) + 1]
+# sleep $[ ( $RANDOM % 10 ) + 1]
 
 # Load modules if present
 if [ -e "/etc/profile.d/modules.sh" ]; then
