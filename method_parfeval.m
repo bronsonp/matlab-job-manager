@@ -6,8 +6,8 @@ function r = method_parfeval(run_opts, configs, config_hashes, run_names)
     r = cell(M, 1);
 
     % Run jobs
-    pool = gcp();
     if M > 1
+        pool = gcp();
         % Create a Future for each task
         start_time = tic();
         for a = 1:M
