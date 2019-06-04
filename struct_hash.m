@@ -44,6 +44,13 @@ function h = struct_hash(s)
             elseif isstruct(s.(field)) || isobject(s.(field))
                 % Recurse into structures and objects
                 for j = 1:numel(s.(field))
+                    if isobject(s)
+                        mc = metaclass(s);
+                        prop = mc.PropertyList(strcmp({mc.PropertyList.Name}, field));
+                        if ~strcmp(prop.SetAccess, 'public')
+                            continue;
+                        end
+                    end
                     s.(field)(j) = sanitise_struct(s.(field)(j));
                 end
             end
