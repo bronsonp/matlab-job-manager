@@ -47,7 +47,9 @@ function h = struct_hash(s)
                     if isobject(s)
                         mc = metaclass(s);
                         prop = mc.PropertyList(strcmp({mc.PropertyList.Name}, field));
-                        if ~strcmp(prop.SetAccess, 'public')
+                        % prop will be empty if `field` is a "dynamic
+                        % property", i.e. one added by calling `addprops`.
+                        if isempty(prop) || ~strcmp(prop.SetAccess, 'public')
                             continue;
                         end
                     end
